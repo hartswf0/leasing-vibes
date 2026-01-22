@@ -1,0 +1,579 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cultural Image Viewer</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <style>
+        :root {
+            --bg-color: #F0EEE6;
+            --text-color: #333333;
+            --accent-color: #555555;
+            --font-mono: 'Courier New', Courier, monospace;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            font-family: var(--font-mono);
+            line-height: 1.6;
+            overflow-x: hidden;
+        }
+
+        #canvas-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100vh;
+            z-index: -1;
+            pointer-events: none;
+        }
+
+        .scroll-container {
+            position: relative;
+            z-index: 1;
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 0 20px;
+        }
+
+        header {
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+        }
+
+        h1 {
+            font-size: 2rem;
+            font-weight: normal;
+            margin-bottom: 1rem;
+            letter-spacing: -1px;
+        }
+
+        h2 {
+            font-size: 1.4rem;
+            font-weight: normal;
+            margin: 3rem 0 2rem 0;
+            padding-bottom: 0.5rem;
+            border-bottom: 1px solid var(--accent-color);
+        }
+
+        .subtitle {
+            font-size: 0.9rem;
+            opacity: 0.6;
+            text-transform: uppercase;
+        }
+
+        .progress-bar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            height: 3px;
+            background: var(--text-color);
+            z-index: 100;
+            width: 0%;
+            transition: width 0.1s ease-out;
+        }
+
+        /* Tab Navigation */
+        .tab-nav {
+            display: flex;
+            gap: 1rem;
+            justify-content: center;
+            margin: 2rem 0;
+            flex-wrap: wrap;
+        }
+
+        .tab-btn {
+            background: rgba(240, 238, 230, 0.9);
+            border: 1px solid var(--accent-color);
+            padding: 0.75rem 1.5rem;
+            font-family: var(--font-mono);
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .tab-btn:hover {
+            background: var(--text-color);
+            color: var(--bg-color);
+        }
+
+        .tab-btn.active {
+            background: var(--text-color);
+            color: var(--bg-color);
+        }
+
+        /* Gallery Grid */
+        .gallery-section {
+            display: none;
+            padding: 2rem 0;
+        }
+
+        .gallery-section.active {
+            display: block;
+        }
+
+        .gallery-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 4rem;
+        }
+
+        .gallery-item {
+            background: rgba(240, 238, 230, 0.9);
+            border: 1px solid var(--accent-color);
+            overflow: hidden;
+            cursor: pointer;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .gallery-item:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 8px 24px rgba(0,0,0,0.1);
+        }
+
+        .gallery-item img {
+            width: 100%;
+            height: 200px;
+            object-fit: cover;
+            display: block;
+            transition: transform 0.3s ease;
+        }
+
+        .gallery-item:hover img {
+            transform: scale(1.02);
+        }
+
+        .gallery-item .caption {
+            padding: 0.75rem 1rem;
+            font-size: 0.85rem;
+            opacity: 0.7;
+            border-top: 1px solid var(--accent-color);
+        }
+
+        /* Lightbox */
+        .lightbox {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.95);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+        }
+
+        .lightbox.active {
+            display: flex;
+        }
+
+        .lightbox img {
+            max-width: 90%;
+            max-height: 80vh;
+            object-fit: contain;
+        }
+
+        .lightbox-close {
+            position: absolute;
+            top: 20px;
+            right: 30px;
+            font-size: 2rem;
+            color: white;
+            cursor: pointer;
+            opacity: 0.7;
+            transition: opacity 0.3s;
+        }
+
+        .lightbox-close:hover {
+            opacity: 1;
+        }
+
+        .lightbox-nav {
+            display: flex;
+            gap: 2rem;
+            margin-top: 1.5rem;
+        }
+
+        .lightbox-nav button {
+            background: transparent;
+            border: 1px solid rgba(255,255,255,0.5);
+            color: white;
+            padding: 0.5rem 1.5rem;
+            font-family: var(--font-mono);
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .lightbox-nav button:hover {
+            background: white;
+            color: black;
+        }
+
+        .lightbox-counter {
+            color: rgba(255,255,255,0.6);
+            margin-top: 1rem;
+            font-size: 0.85rem;
+        }
+
+        footer {
+            padding: 4rem 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            opacity: 0.5;
+            font-size: 0.8rem;
+        }
+
+        @keyframes bounce {
+            0%, 20%, 50%, 80%, 100% { transform: translateY(0); }
+            40% { transform: translateY(-10px); }
+            60% { transform: translateY(-5px); }
+        }
+
+        @media (max-width: 768px) {
+            .scroll-container {
+                padding: 0 15px;
+            }
+            .gallery-grid {
+                grid-template-columns: 1fr;
+            }
+            h1 {
+                font-size: 1.5rem;
+            }
+            .tab-btn {
+                padding: 0.5rem 1rem;
+                font-size: 0.8rem;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="progress-bar" id="progress"></div>
+
+    <div id="canvas-container"></div>
+
+    <!-- Lightbox -->
+    <div class="lightbox" id="lightbox">
+        <span class="lightbox-close" onclick="closeLightbox()">×</span>
+        <img id="lightbox-img" src="" alt="">
+        <div class="lightbox-nav">
+            <button onclick="navigateLightbox(-1)">← Previous</button>
+            <button onclick="navigateLightbox(1)">Next →</button>
+        </div>
+        <div class="lightbox-counter" id="lightbox-counter"></div>
+    </div>
+
+    <main class="scroll-container">
+        <header>
+            <span class="subtitle">Visual Archives</span>
+            <h1>CULTURAL IMAGERY</h1>
+            <p style="opacity: 0.6; margin-top: 0.5rem;">Two Collections</p>
+            <div style="margin-top: 2rem; animation: bounce 2s infinite;">↓</div>
+        </header>
+
+        <!-- Tab Navigation -->
+        <nav class="tab-nav">
+            <button class="tab-btn active" onclick="showGallery('geertz')">The Impact of Culture on Man</button>
+            <button class="tab-btn" onclick="showGallery('cultural-os')">Cultural OS</button>
+            <button class="tab-btn" onclick="showGallery('all')">View All</button>
+        </nav>
+
+        <!-- Geertz Gallery -->
+        <section class="gallery-section active" id="gallery-geertz">
+            <h2>The Impact of the Concept of Culture on the Concept of Man</h2>
+            <div class="gallery-grid" id="grid-geertz"></div>
+        </section>
+
+        <!-- Cultural OS Gallery -->
+        <section class="gallery-section" id="gallery-cultural-os">
+            <h2>CULTURAL OS: The Human Operating System</h2>
+            <div class="gallery-grid" id="grid-cultural-os"></div>
+        </section>
+
+        <!-- All Gallery -->
+        <section class="gallery-section" id="gallery-all">
+            <h2>All Images</h2>
+            <div class="gallery-grid" id="grid-all"></div>
+        </section>
+
+        <footer>
+            <p>Cultural Image Viewer</p>
+        </footer>
+    </main>
+
+    <script>
+        // Image Data
+        const geertzImages = [
+            { src: 'The Impact of the Concept of Culture on the Concept of Man/1.png', caption: 'Image 1' },
+            { src: 'The Impact of the Concept of Culture on the Concept of Man/2.png', caption: 'Image 2' },
+            { src: 'The Impact of the Concept of Culture on the Concept of Man/3.png', caption: 'Image 3' },
+            { src: 'The Impact of the Concept of Culture on the Concept of Man/4.png', caption: 'Image 4' },
+            { src: 'The Impact of the Concept of Culture on the Concept of Man/5.png', caption: 'Image 5' },
+            { src: 'The Impact of the Concept of Culture on the Concept of Man/6.png', caption: 'Image 6' },
+            { src: 'The Impact of the Concept of Culture on the Concept of Man/7.png', caption: 'Image 7' },
+            { src: 'The Impact of the Concept of Culture on the Concept of Man/8.png', caption: 'Image 8' }
+        ];
+
+        const culturalOsImages = [
+            { src: 'CULTURAL OS_ The Human Operating System/1.png', caption: 'Image 1' },
+            { src: 'CULTURAL OS_ The Human Operating System/2.png', caption: 'Image 2' },
+            { src: 'CULTURAL OS_ The Human Operating System/3.png', caption: 'Image 3' },
+            { src: 'CULTURAL OS_ The Human Operating System/4.png', caption: 'Image 4' },
+            { src: 'CULTURAL OS_ The Human Operating System/5.png', caption: 'Image 5' },
+            { src: 'CULTURAL OS_ The Human Operating System/6.png', caption: 'Image 6' },
+            { src: 'CULTURAL OS_ The Human Operating System/7.png', caption: 'Image 7' },
+            { src: 'CULTURAL OS_ The Human Operating System/8.png', caption: 'Image 8' },
+            { src: 'CULTURAL OS_ The Human Operating System/9.png', caption: 'Image 9' }
+        ];
+
+        let currentImages = [];
+        let currentIndex = 0;
+
+        function createGalleryItem(img, index, collection) {
+            const div = document.createElement('div');
+            div.className = 'gallery-item';
+            div.innerHTML = `
+                <img src="${img.src}" alt="${img.caption}" loading="lazy">
+                <div class="caption">${img.caption}</div>
+            `;
+            div.onclick = () => openLightbox(collection, index);
+            return div;
+        }
+
+        function populateGalleries() {
+            const gridGeertz = document.getElementById('grid-geertz');
+            const gridCulturalOs = document.getElementById('grid-cultural-os');
+            const gridAll = document.getElementById('grid-all');
+
+            geertzImages.forEach((img, i) => {
+                gridGeertz.appendChild(createGalleryItem(img, i, 'geertz'));
+            });
+
+            culturalOsImages.forEach((img, i) => {
+                gridCulturalOs.appendChild(createGalleryItem(img, i, 'cultural-os'));
+            });
+
+            // All images
+            geertzImages.forEach((img, i) => {
+                gridAll.appendChild(createGalleryItem(img, i, 'geertz-all'));
+            });
+            culturalOsImages.forEach((img, i) => {
+                gridAll.appendChild(createGalleryItem(img, geertzImages.length + i, 'cultural-os-all'));
+            });
+        }
+
+        function showGallery(id) {
+            document.querySelectorAll('.gallery-section').forEach(s => s.classList.remove('active'));
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            
+            if (id === 'geertz') {
+                document.getElementById('gallery-geertz').classList.add('active');
+                document.querySelectorAll('.tab-btn')[0].classList.add('active');
+            } else if (id === 'cultural-os') {
+                document.getElementById('gallery-cultural-os').classList.add('active');
+                document.querySelectorAll('.tab-btn')[1].classList.add('active');
+            } else {
+                document.getElementById('gallery-all').classList.add('active');
+                document.querySelectorAll('.tab-btn')[2].classList.add('active');
+            }
+        }
+
+        function openLightbox(collection, index) {
+            if (collection === 'geertz' || collection === 'geertz-all') {
+                currentImages = geertzImages;
+                currentIndex = index;
+            } else if (collection === 'cultural-os' || collection === 'cultural-os-all') {
+                currentImages = culturalOsImages;
+                currentIndex = collection.includes('all') ? index - geertzImages.length : index;
+            }
+            
+            // For "all" view, combine arrays
+            if (collection.includes('all')) {
+                currentImages = [...geertzImages, ...culturalOsImages];
+                currentIndex = index;
+            }
+            
+            updateLightbox();
+            document.getElementById('lightbox').classList.add('active');
+            document.body.style.overflow = 'hidden';
+        }
+
+        function closeLightbox() {
+            document.getElementById('lightbox').classList.remove('active');
+            document.body.style.overflow = '';
+        }
+
+        function navigateLightbox(dir) {
+            currentIndex += dir;
+            if (currentIndex < 0) currentIndex = currentImages.length - 1;
+            if (currentIndex >= currentImages.length) currentIndex = 0;
+            updateLightbox();
+        }
+
+        function updateLightbox() {
+            document.getElementById('lightbox-img').src = currentImages[currentIndex].src;
+            document.getElementById('lightbox-counter').textContent = 
+                `${currentIndex + 1} / ${currentImages.length}`;
+        }
+
+        // Keyboard navigation
+        document.addEventListener('keydown', (e) => {
+            if (!document.getElementById('lightbox').classList.contains('active')) return;
+            if (e.key === 'Escape') closeLightbox();
+            if (e.key === 'ArrowLeft') navigateLightbox(-1);
+            if (e.key === 'ArrowRight') navigateLightbox(1);
+        });
+
+        // --- THREE.JS LOGIC ---
+        let scene, camera, renderer, points, lineSystem;
+        let scrollPercent = 0;
+        const PARTICLE_COUNT = 3000;
+        
+        const posCube = new Float32Array(PARTICLE_COUNT * 3);
+        const posSphere = new Float32Array(PARTICLE_COUNT * 3);
+        const posFlow = new Float32Array(PARTICLE_COUNT * 3);
+
+        function init() {
+            scene = new THREE.Scene();
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.z = 5;
+
+            renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            document.getElementById('canvas-container').appendChild(renderer.domElement);
+
+            for (let i = 0; i < PARTICLE_COUNT; i++) {
+                const i3 = i * 3;
+                posCube[i3] = (Math.random() - 0.5) * 4;
+                posCube[i3 + 1] = (Math.random() - 0.5) * 4;
+                posCube[i3 + 2] = (Math.random() - 0.5) * 4;
+
+                const phi = Math.acos(-1 + (2 * i) / PARTICLE_COUNT);
+                const theta = Math.sqrt(PARTICLE_COUNT * Math.PI) * phi;
+                posSphere[i3] = 2.5 * Math.cos(theta) * Math.sin(phi);
+                posSphere[i3 + 1] = 2.5 * Math.sin(theta) * Math.sin(phi);
+                posSphere[i3 + 2] = 2.5 * Math.cos(phi);
+
+                posFlow[i3] = (Math.random() - 0.5) * 10;
+                posFlow[i3 + 1] = Math.sin(posFlow[i3] * 0.5) * 2;
+                posFlow[i3 + 2] = (Math.random() - 0.5) * 2;
+            }
+
+            const geometry = new THREE.BufferGeometry();
+            geometry.setAttribute('position', new THREE.BufferAttribute(new Float32Array(posCube), 3));
+
+            const material = new THREE.PointsMaterial({
+                color: 0x333333,
+                size: 0.02,
+                transparent: true,
+                opacity: 0.6
+            });
+
+            points = new THREE.Points(geometry, material);
+            scene.add(points);
+
+            const lineMat = new THREE.LineBasicMaterial({ color: 0x333333, transparent: true, opacity: 0.1 });
+            const lineGeom = new THREE.BufferGeometry();
+            const linePositions = new Float32Array(600);
+            lineGeom.setAttribute('position', new THREE.BufferAttribute(linePositions, 3));
+            lineSystem = new THREE.LineSegments(lineGeom, lineMat);
+            scene.add(lineSystem);
+
+            window.addEventListener('resize', onWindowResize);
+            document.addEventListener('scroll', onScroll);
+            
+            animate();
+        }
+
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        function onScroll() {
+            const h = document.documentElement, 
+                  b = document.body,
+                  st = 'scrollTop',
+                  sh = 'scrollHeight';
+            scrollPercent = (h[st]||b[st]) / ((h[sh]||b[sh]) - h.clientHeight);
+            document.getElementById('progress').style.width = (scrollPercent * 100) + '%';
+        }
+
+        function lerp(a, b, t) {
+            return a + (b - a) * t;
+        }
+
+        function updateGeometry() {
+            const positions = points.geometry.attributes.position.array;
+            
+            for (let i = 0; i < PARTICLE_COUNT; i++) {
+                const i3 = i * 3;
+                let targetX, targetY, targetZ;
+
+                if (scrollPercent < 0.5) {
+                    const t = scrollPercent * 2;
+                    targetX = lerp(posCube[i3], posFlow[i3], t);
+                    targetY = lerp(posCube[i3 + 1], posFlow[i3 + 1], t);
+                    targetZ = lerp(posCube[i3 + 2], posFlow[i3 + 2], t);
+                } else {
+                    const t = (scrollPercent - 0.5) * 2;
+                    targetX = lerp(posFlow[i3], posSphere[i3], t);
+                    targetY = lerp(posFlow[i3 + 1], posSphere[i3 + 1], t);
+                    targetZ = lerp(posFlow[i3 + 2], posSphere[i3 + 2], t);
+                }
+
+                positions[i3] = lerp(positions[i3], targetX, 0.1);
+                positions[i3 + 1] = lerp(positions[i3 + 1], targetY, 0.1);
+                positions[i3 + 2] = lerp(positions[i3 + 2], targetZ, 0.1);
+            }
+            points.geometry.attributes.position.needsUpdate = true;
+
+            const linePos = lineSystem.geometry.attributes.position.array;
+            for(let i = 0; i < 200; i++) {
+                const pIdx = i * 10;
+                linePos[i*6] = positions[pIdx];
+                linePos[i*6+1] = positions[pIdx+1];
+                linePos[i*6+2] = positions[pIdx+2];
+                linePos[i*6+3] = positions[pIdx+3];
+                linePos[i*6+4] = positions[pIdx+4];
+                linePos[i*6+5] = positions[pIdx+5];
+            }
+            lineSystem.geometry.attributes.position.needsUpdate = true;
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            updateGeometry();
+            points.rotation.y += 0.002 + (scrollPercent * 0.01);
+            points.rotation.x = scrollPercent * 0.5;
+            lineSystem.rotation.y = points.rotation.y;
+            lineSystem.rotation.x = points.rotation.x;
+            renderer.render(scene, camera);
+        }
+
+        window.onload = () => {
+            populateGalleries();
+            init();
+        };
+    </script>
+</body>
+</html>

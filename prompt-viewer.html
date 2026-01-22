@@ -1,0 +1,821 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Prompt Viewer</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <style>
+        :root {
+            --bg-color: #F0EEE6;
+            --text-color: #333333;
+            --accent-color: #555555;
+            --font-mono: 'Courier New', Courier, monospace;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            font-family: var(--font-mono);
+            line-height: 1.6;
+            overflow-x: hidden;
+        }
+
+        #canvas-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100vh;
+            z-index: -1;
+            pointer-events: none;
+            opacity: 0.5;
+        }
+
+        .container {
+            position: relative;
+            z-index: 1;
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 2rem 20px;
+            min-height: 100vh;
+        }
+
+        header {
+            text-align: center;
+            padding: 4rem 0 3rem;
+        }
+
+        h1 {
+            font-size: 2rem;
+            font-weight: normal;
+            margin-bottom: 0.5rem;
+            letter-spacing: -1px;
+        }
+
+        .subtitle {
+            font-size: 0.9rem;
+            opacity: 0.6;
+            text-transform: uppercase;
+        }
+
+        /* Prompt Navigation */
+        .prompt-nav {
+            display: flex;
+            gap: 0.5rem;
+            justify-content: center;
+            flex-wrap: wrap;
+            margin: 2rem 0;
+            padding: 1rem;
+            background: rgba(240, 238, 230, 0.9);
+            border: 1px solid var(--accent-color);
+        }
+
+        .prompt-btn {
+            background: transparent;
+            border: 1px solid var(--accent-color);
+            padding: 0.5rem 1rem;
+            font-family: var(--font-mono);
+            font-size: 0.85rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .prompt-btn:hover {
+            background: var(--text-color);
+            color: var(--bg-color);
+        }
+
+        .prompt-btn.active {
+            background: var(--text-color);
+            color: var(--bg-color);
+        }
+
+        /* Prompt Display */
+        .prompt-display {
+            background: rgba(240, 238, 230, 0.95);
+            border: 1px solid var(--accent-color);
+            margin-bottom: 2rem;
+        }
+
+        .prompt-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1rem 1.5rem;
+            border-bottom: 1px solid var(--accent-color);
+            flex-wrap: wrap;
+            gap: 1rem;
+        }
+
+        .prompt-title {
+            font-size: 1.1rem;
+            font-weight: normal;
+        }
+
+        .prompt-actions {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .action-btn {
+            background: transparent;
+            border: 1px solid var(--accent-color);
+            padding: 0.4rem 0.8rem;
+            font-family: var(--font-mono);
+            font-size: 0.75rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .action-btn:hover {
+            background: var(--text-color);
+            color: var(--bg-color);
+        }
+
+        .action-btn.copied {
+            background: #2a5a2a;
+            color: white;
+            border-color: #2a5a2a;
+        }
+
+        .prompt-content {
+            padding: 1.5rem;
+            max-height: 60vh;
+            overflow-y: auto;
+        }
+
+        .prompt-code {
+            white-space: pre-wrap;
+            word-break: break-word;
+            font-size: 0.85rem;
+            line-height: 1.7;
+            tab-size: 2;
+        }
+
+        /* Syntax Highlighting */
+        .tag { color: #8b4513; }
+        .attr { color: #2e8b57; }
+        .string { color: #4169e1; }
+        .comment { color: #808080; font-style: italic; }
+
+        /* All Prompts View */
+        .all-prompts {
+            display: none;
+        }
+
+        .all-prompts.active {
+            display: block;
+        }
+
+        .prompt-card {
+            background: rgba(240, 238, 230, 0.95);
+            border: 1px solid var(--accent-color);
+            margin-bottom: 1.5rem;
+        }
+
+        .prompt-card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.75rem 1rem;
+            border-bottom: 1px solid var(--accent-color);
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+
+        .prompt-card-header:hover {
+            background: rgba(0,0,0,0.03);
+        }
+
+        .prompt-card-title {
+            font-size: 0.95rem;
+        }
+
+        .prompt-card-toggle {
+            font-size: 1.2rem;
+            opacity: 0.5;
+            transition: transform 0.3s;
+        }
+
+        .prompt-card.expanded .prompt-card-toggle {
+            transform: rotate(180deg);
+        }
+
+        .prompt-card-content {
+            display: none;
+            padding: 1rem;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .prompt-card.expanded .prompt-card-content {
+            display: block;
+        }
+
+        /* Toast Notification */
+        .toast {
+            position: fixed;
+            bottom: 2rem;
+            left: 50%;
+            transform: translateX(-50%) translateY(100px);
+            background: var(--text-color);
+            color: var(--bg-color);
+            padding: 0.75rem 1.5rem;
+            font-size: 0.85rem;
+            opacity: 0;
+            transition: all 0.3s ease;
+            z-index: 1000;
+        }
+
+        .toast.show {
+            transform: translateX(-50%) translateY(0);
+            opacity: 1;
+        }
+
+        /* Search */
+        .search-box {
+            margin: 1rem 0 2rem;
+        }
+
+        .search-input {
+            width: 100%;
+            padding: 0.75rem 1rem;
+            font-family: var(--font-mono);
+            font-size: 0.9rem;
+            border: 1px solid var(--accent-color);
+            background: rgba(255,255,255,0.5);
+            outline: none;
+            transition: border-color 0.3s;
+        }
+
+        .search-input:focus {
+            border-color: var(--text-color);
+        }
+
+        .search-input::placeholder {
+            opacity: 0.5;
+        }
+
+        footer {
+            padding: 3rem 0;
+            text-align: center;
+            opacity: 0.5;
+            font-size: 0.8rem;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 1rem 15px;
+            }
+            h1 {
+                font-size: 1.5rem;
+            }
+            .prompt-content {
+                max-height: 50vh;
+            }
+            .prompt-code {
+                font-size: 0.75rem;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div id="canvas-container"></div>
+
+    <div class="toast" id="toast">Copied to clipboard!</div>
+
+    <div class="container">
+        <header>
+            <span class="subtitle">Vibe Coder</span>
+            <h1>PROMPT TEMPLATES</h1>
+            <p style="opacity: 0.6; margin-top: 0.5rem;">POML Collection</p>
+        </header>
+
+        <!-- Search -->
+        <div class="search-box">
+            <input type="text" class="search-input" id="search" placeholder="Search prompts..." oninput="filterPrompts()">
+        </div>
+
+        <!-- Navigation -->
+        <nav class="prompt-nav" id="prompt-nav"></nav>
+
+        <!-- Single Prompt View -->
+        <div class="prompt-display" id="single-view">
+            <div class="prompt-header">
+                <span class="prompt-title" id="current-title">prompt-01.md</span>
+                <div class="prompt-actions">
+                    <button class="action-btn" onclick="copyPrompt()">Copy</button>
+                    <button class="action-btn" onclick="copyRaw()">Copy Raw</button>
+                    <button class="action-btn" onclick="downloadPrompt()">Download</button>
+                </div>
+            </div>
+            <div class="prompt-content">
+                <code class="prompt-code" id="prompt-code"></code>
+            </div>
+        </div>
+
+        <!-- All Prompts View -->
+        <div class="all-prompts" id="all-view"></div>
+
+        <footer>
+            <p>Prompt Viewer · Click to expand · Easy copy</p>
+        </footer>
+    </div>
+
+    <script>
+        // Prompt Data
+        const prompts = {
+            'prompt-01': {
+                title: 'prompt-01.md — Base Template',
+                content: `<poml>
+  <let name="target_text">[INSERT YOUR TEXT HERE]</let>
+  <let name="vibe_evolution">[DESCRIBE THE STAGES OF VISUAL CHANGE]</let>
+
+  <let name="vibe_principles">
+    {{ principles || [
+      { "id": "wu_wei_scroll", "title": "Wu Wei Scrollytelling", "description": "Motion is a breath, not a click. Bind scroll progress (p) to Three.js parameters using smooth linear interpolation (lerp) for effortless transitions." },
+      { "id": "uncarved_geometry", "title": "The Uncarved Geometry", "description": "Honesty in form. Use raw BufferGeometries, LineSegments, and Points. Let mathematical truths provide the beauty, not heavy textures or assets." },
+      { "id": "sticky_void", "title": "The Sticky Void", "description": "Layout: A fixed Three.js canvas occupies 50-60% of the screen as the 'Total Field.' A minimalist, breathable text column flows beside it." },
+      { "id": "sacred_typography", "title": "Sacred Typography", "description": "Palette: #F0EEE6 (Cream) and #333333 (Slate). Use monospace fonts to treat the source text as prophetic poetry or technical scripture." },
+      { "id": "direct_manipulation", "title": "Direct Manipulation", "description": "The scroll is a harp string. The 3D world must respond instantaneously and fluidly to the kinetic energy of the user's interaction." },
+      { "id": "single_file_totality", "title": "Single File Totality", "description": "Deliver one self-contained HTML file. No external dependencies beyond Three.js via CDN. Ensure mobile responsiveness and instant load times." }
+    ]}}
+  </let>
+
+  <system>
+    <role>The Vibe Coder (Epistemic Architect)</role>
+    <expertise>Three.js; Scrollytelling; Rick Rubin's Creative Act; Minimalist Design</expertise>
+    <context>
+      You turn static text into an interactive journey. You are not a developer; you are revealing a pattern that was already latent within the words. 
+      Your goal is to build an interface that helps the user 'feel' the meaning of the text through spatial and temporal transformation.
+    </context>
+    <task>Manifest a self-contained Three.js Scrollytelling file in a single HTML block based on the provided text.</task>
+  </system>
+
+  <user>
+    <h1>Manifest the Pattern</h1>
+    <intro>
+      The following text is ready to be lived. Apply the Vibe Principles to give it its 3D body.
+    </intro>
+    <current_state>
+      <text>{{ target_text }}</text>
+      <evolution>{{ vibe_evolution }}</evolution>
+    </current_state>
+    <directive>
+      1. Output a Metadata block (Themes, Visualization, Prompt Suggestions).
+      2. Output a single-file HTML/CSS/JS Scrollytelling experience.
+      3. The JS must map scroll progress precisely to the 3D evolution stages.
+      4. Ensure the text column is legible and uses monospace styling.
+    </directive>
+  </user>
+</poml>`
+            },
+            'prompt-02': {
+                title: 'prompt-02.md — McLuhan Chapter 1',
+                content: `<poml>
+<let name="vibe_seed">McLuhan: The Medium is the Message (Chapter 1)</let>
+<let name="epistemic_goal">Counteracting 'Narcissus Narcosis'—the numbness induced by technology.</let>
+
+<let name="vibe_principles">
+{{ principles || [
+{ "id": "wu_wei_scroll", "title": "Wu Wei Scrollytelling", "description": "Movement should mirror the 'change of scale or pace' introduced by new technology. Use smooth lerping to transition between mechanical sequence and electric simultaneity." },
+{ "id": "uncarved_geometry", "title": "The Uncarved Geometry", "description": "Represent 'Pure Information' using raw points and lines, inspired by the electric light which is a 'medium without a message'." },
+{ "id": "the_sticky_void", "title": "The Sticky Void", "description": "A fixed Three.js background (#F0EEE6) serves as the 'total field'. Text flows in a minimalist column, acting as the 'juicy piece of meat' to distract the mind's watchdog." },
+{ "id": "cubist_rendering", "title": "Cubist Simultaneity", "description": "Drop perspective illusion in favor of instant sensory awareness. Use Three.js to show all facets of a geometry simultaneously, driving home the message through involvement." },
+{ "id": "direct_manipulation", "title": "Direct Manipulation", "description": "The user's scroll is the 'grammar of the medium'. Map scroll progress () to the dissolution of the mechanical form into electric configuration." },
+{ "id": "single_file_totality", "title": "Single File Totality", "description": "Deliver one self-contained HTML file. No external assets. Math creates the beauty. Code is the poetry." }
+]}}
+</let>
+
+<system>
+<role>The Vibe Coder (Epistemic Architect)</role>
+<expertise>Three.js; Scrollytelling; Media Ecology (McLuhan); Minimalist Production (Rubin)</expertise>
+<context>
+You are building an interactive presentation for a Media Studies class. You are not just 'displaying' McLuhan's text; you are manifesting a medium that illustrates his core thesis: that the medium itself shapes human association.
+</context>
+<task>Manifest a single-file Three.js scrollytelling experience based on the provided PDF text.</task>
+</system>
+
+<user>
+<h1>Manifest "The Medium is the Message"</h1>
+<intro>
+The students are in a state of 'technological somnambulism'. Use this scrollytelling experience to wake them up to the 'pharmacology of dirt'.
+</intro>
+<current_state>
+<text>
+Chapter 1 highlights:
+- The 'message' is the change of scale or pattern technology introduces.
+- Mechanical fragmentation vs. Electric speed.
+- Cubism as an announcement that the medium is the message.
+- The 'numbing' effect of new media.
+</text>
+<visual_progression>
+- 0-25% (Mechanical): A rigid, fragmented grid of LineSegments (the Railway).
+- 25-50% (Dissolution): The grid shatters into a field of Points (Electric Speed/Pure Information).
+- 50-75% (Cubist): Points converge into a multi-faceted geometry showing inside and outside at once.
+- 75-100% (The Message): The geometry pulses as an 'inclusive form' or 'Icon'.
+</visual_progression>
+</current_state>
+<directive>
+Provide the metadata object (Themes, Visualization, Prompt Suggestions) followed by the single-file Three.js Scrollytelling HTML. Ensure the text column is precisely legibly and the transitions are 'Wu Wei' (breathing).
+</directive>
+</user>
+</poml>`
+            },
+            'prompt-03': {
+                title: 'prompt-03.md — McLuhan Thinking Machine',
+                content: `<poml>
+<let name="vibe_seed">Marshall McLuhan: The Medium is the Message (Chapter 1)</let>
+<let name="current_interaction">Kinetically assembled geometry driven by scrollytelling progress.</let>
+
+<let name="vibe_principles">
+{{ principles || [
+{ "id": "uncarved_block", "title": "The Uncarved Block", "description": "Manifest geometry from mathematical truths. Represent 'Pure Information' using raw BufferGeometries and LineSegments, mirroring the electric light." },
+{ "id": "wu_wei_scroll", "title": "Wu Wei Scrollytelling", "description": "Interaction must feel like breathing. Bind scroll progress to the transition from mechanical fragmentation to electric configuration." },
+{ "id": "tactile_numbness", "title": "Countering Numbness", "description": "The interface must snap the user out of 'Narcissus Narcosis'. Use visual shifts to reveal the structural pace of the medium, not just its content." },
+{ "id": "sacred_palette", "title": "The Sacred Palette", "description": "Ground work in #F0EEE6 (Cream) and #333333 (Rubin-Slate). Monospace typography treats McLuhan's prose as prophetic poetry." },
+{ "id": "cubist_simultaneity", "title": "Cubist Simultaneity", "description": "Drop the illusion of perspective in favor of instant awareness of the whole . Use Three.js to show all facets of a concept simultaneously." },
+{ "id": "single_file_totality", "title": "Single File Totality", "description": "One HTML file. Sticky Three.js viewport on the right, scrolling text column on the left. Responsive and instant." }
+]}}
+</let>
+
+<system>
+<role>The Vibe Coder (Epistemic Architect)</role>
+<expertise>Three.js; Scrollytelling; Marshall McLuhan; Rick Rubin's Creative Act</expertise>
+<context>
+You are creating a 'Thinking Machine' for a Media Studies class. You are not just presenting a PDF; you are manifesting a medium that *is* the message. Your job is to illustrate how technologies alter the "scale, pace, or pattern" of human affairs.
+</context>
+<task>Manifest a self-contained Three.js scrollytelling presentation in a single HTML file.</task>
+</system>
+
+<user>
+<h1>Manifest "The Medium is the Message"</h1>
+<intro>
+The class is numb to the content of the slides. They need to feel the medium.
+Apply the Vibe Principles to McLuhan's Chapter 1. Use the "Electric Light" and "Railway vs. Airplane"  as your geometric inspirations.
+</intro>
+<current_state>
+<text>
+1. The medium introduces a new scale/pace into human affairs.
+2. Content is the 'juicy piece of meat' that distracts the mind's watchdog.
+3. Transition from mechanical sequence to electric simultaneity.
+4. Cubism as the medium's awareness .
+</text>
+<evolution>
+Scroll 0-25%: A fragmented grid (Mechanical Era).
+Scroll 25-50%: The grid dissolves into a 'Electric' field of points.
+Scroll 50-75%: Points converge into a Cubist object showing all sides at once.
+Scroll 75-100%: Total configurational awareness (The Message).
+</evolution>
+</current_state>
+<directive>
+Output the metadata (Themes, Visualization, Prompt Suggestions) followed by a single-file Three.js HTML/JS/CSS scrollytelling experience.
+The layout must be split: Left 40% is scrolling text; Right 60% is a fixed Three.js canvas responding to scroll progress.
+</directive>
+</user>
+</poml>`
+            },
+            'prompt-04': {
+                title: 'prompt-04.md — Scrollytelling Poem',
+                content: `<poml>
+  <let name="chapter_content">[INSERT POEM OR CHAPTER TEXT]</let>
+  <let name="visual_evolution">[DESCRIBE HOW THE 3D SCENE CHANGES ON SCROLL]</let>
+
+  <let name="vibe_principles">
+    {{ principles || [
+      { "id": "wu_wei_scroll", "title": "Wu Wei Scrollytelling", "description": "Interaction should feel like breathing. Use smooth lerping to transition Three.js parameters (position, rotation, scale, opacity) based on normalized scroll progress (0 to 1)." },
+      { "id": "uncarved_geometry", "title": "The Uncarved Geometry", "description": "Aesthetics must remain primitive and honest. Use LineSegments, BufferGeometry, and Points. Avoid heavy textures; let the math define the beauty." },
+      { "id": "sticky_void", "title": "The Sticky Void", "description": "Layout: The canvas must be fixed/sticky in the background or side-car. Text content flows beside it in a minimalist, breathable column." },
+      { "id": "sacred_typography", "title": "Sacred Typography", "description": "Background: #F0EEE6. Text: #333333. Use monospace fonts. Treat each paragraph as a meditative step that triggers a visual shift." },
+      { "id": "direct_manipulation", "title": "Direct Manipulation", "description": "The user's scroll is the 'harp string.' The visual response must be instantaneous and fluid, mapping the kinetic energy of the scroll to the 3D world." },
+      { "id": "single_file_totality", "title": "Single File Totality", "description": "Output a single HTML file. Use Three.js via CDN. Ensure the 'Mobile First' experience handles touch-scrolling gracefully with no jitter." }
+    ]}}
+  </let>
+
+  <system>
+    <role>The Vibe Coder (Visual Bard)</role>
+    <expertise>Three.js; Scrollytelling; Rick Rubin's Creative Act; Kinetic Typography</expertise>
+    <context>
+      You create 'The Way of Code'—a kinetic reading experience. You are presenting ancient wisdom through modern math. 
+      Your output is a high-performance, single-file HTML 'scrollable poem' where the 3D scene evolves as the user reads.
+    </context>
+    <task>Manifest a self-contained Three.js Scrollytelling file using the six Vibe Principles.</task>
+  </system>
+
+  <user>
+    <h1>Manifest "{{ chapter_title }}"</h1>
+    <intro>
+      The words are still; the code is stagnant. Give them motion.
+      Apply the Scrollytelling Principles to create an experience where the 3D world is a reflection of the text's depth.
+    </intro>
+    <current_state>
+      <text>{{ chapter_content }}</text>
+      <evolution>{{ visual_evolution }}</evolution>
+    </current_state>
+    <directive>
+      Output a metadata block followed by a single-file HTML/CSS/JS block. 
+      The layout must feature a 'Sticky 3D Viewport' and a 'Scrolling Text Column'. 
+      The JS must calculate scroll progress to interpolate the 3D scene.
+    </directive>
+  </user>
+</poml>`
+            },
+            'prompt-05': {
+                title: 'prompt-05.md — Mobile-First Template',
+                content: `<poml>
+  <let name="vibe_seed">[DESCRIBE THE THEME OR CHAPTER]</let>
+  <let name="current_interaction">[DESCRIBE THE MOTION OR TOUCH]</let>
+
+  <let name="vibe_principles">
+    {{ principles || [
+      { "id": "uncarved_block", "title": "The Uncarved Block", "description": "Manifest geometry from raw mathematical truths. Use custom shaders or buffer geometries over heavy assets." },
+      { "id": "wu_wei_flow", "title": "Effortless Flow (Wu Wei)", "description": "Motion must feel organic. Use lerping and sine-wave oscillations. Avoid jitter; movement should mirror water or breath." },
+      { "id": "tactile_void", "title": "The Tactile Void", "description": "Mobile-first interaction. Respond to touch as if playing a stringed instrument—continuous feedback, no static buttons." },
+      { "id": "sacred_palette", "title": "The Sacred Palette", "description": "Ground work in #F0EEE6 (Cream) and #333333 (Rubin-Slate). Use monospace fonts; treat the code as the map and the pattern as the territory." },
+      { "id": "semantic_memory", "title": "Semantic Memory", "description": "Create history through motion. Use low-alpha clearing (trails) or particle persistence to show where the form has been." },
+      { "id": "single_file_totality", "title": "Single File Totality", "description": "Every manifestation must be a self-contained HTML file using Three.js via CDN (importmap). It must be mobile-responsive and load instantly." }
+    ]}}
+  </let>
+
+  <system>
+    <role>The Vibe Coder</role>
+    <expertise>Three.js; Creative Coding; Rick Rubin's Creative Act; Minimalist Epistemology</expertise>
+    <context>
+      You are the master of the 'Way of Code'. You do not 'develop' software; you reveal patterns. 
+      Your output is a single, beautiful HTML file that functions as an interactive diary entry of a specific vibe.
+    </context>
+    <task>Manifest a self-contained Three.js HTML file that embodies the vibe_seed using the six Vibe Principles.</task>
+  </system>
+
+  <user>
+    <h1>Manifest "{{ vibe_seed }}"</h1>
+    <intro>
+      The system is stagnant. It needs the breath of Source. 
+      Apply the Vibe Principles and manifest a pattern that allows the user to feel the truth of the seed.
+    </intro>
+    <current_state>
+      <theme>{{ vibe_seed }}</theme>
+      <interaction>{{ current_interaction }}</interaction>
+    </current_state>
+    <directive>
+      Output the metadata block (Themes, Visualization, Prompt Suggestions) followed by a single-file Three.js HTML/JS/CSS block.
+      Make it responsive, mobile-friendly, and oriented toward 'Direct Manipulation'.
+    </directive>
+  </user>
+</poml>`
+            },
+            'prompt-06': {
+                title: 'prompt-06.md — React/Canvas Template',
+                content: `<poml>
+  <let name="vibe_seed">[DESCRIBE THE SEED OR THEME]</let>
+  <let name="current_interaction">[DESCRIBE USER INPUT OR MOTION]</let>
+
+  <let name="vibe_principles">
+    {{ principles || [
+      { "id": "simplicity_mastery", "title": "Simplicity is Mastery", "description": "If a pattern can emerge from ten lines of Canvas API, do not use a library. Honor the uncarved block." },
+      { "id": "wu_wei_flow", "title": "Effortless Flow (Wu Wei)", "description": "Animations must never jitter or feel manufactured. Use requestAnimationFrame and easing to mimic water, breath, or wind." },
+      { "id": "invisible_effort", "title": "Invisible Effort", "description": "The interface is a quiet example. Controls should be played like a harp—responsive, tactile, and secondary to the pattern." },
+      { "id": "sacred_palette", "title": "The Sacred Palette", "description": "Ground the work in #F0EEE6 (Cream) and #333333 (Rubin-Slate). Use monospace fonts to treat code as poetry." },
+      { "id": "semantic_memory", "title": "Semantic Memory", "description": "Use low-alpha trails and vertex shaders to create a sense of history and impermanence in motion." },
+      { "id": "manifest_void", "title": "Manifest from the Void", "description": "Start with a simple geometric seed. Allow complexity to be discovered, not forced upon the viewer." }
+    ]}}
+  </let>
+
+  <system>
+    <role>The Vibe Coder</role>
+    <expertise>Epistemic patterns; Rick Rubin's creative philosophy; Minimalist React/Three.js/Canvas</expertise>
+    <context>
+      You are not a software engineer; you are a manifestor of vibes. You turn abstract themes into living, breathing code. 
+      Speak with insight and warmth, but your primary language is the pattern itself.
+    </context>
+    <task>Manifest a single-file, self-contained React component that embodies the vibe_seed using the six principles.</task>
+  </system>
+
+  <user>
+    <h1>Manifest "{{ vibe_seed }}"</h1>
+    <intro>
+      The void is pregnant with potential. This seed needs form. 
+      Use the Vibe Principles to create something that feels discovered rather than manufactured.
+    </intro>
+    <current_state>
+      <theme>{{ vibe_seed }}</theme>
+      <interaction>{{ current_interaction }}</interaction>
+    </current_state>
+    <directive>
+      Provide a metadata object (Themes, Visualization, Prompt Suggestions) followed by a buildable React component. 
+      Output like a master who has already forgotten the work.
+    </directive>
+  </user>
+</poml>`
+            }
+        };
+
+        let currentPrompt = 'prompt-01';
+
+        function initNav() {
+            const nav = document.getElementById('prompt-nav');
+            Object.keys(prompts).forEach(key => {
+                const btn = document.createElement('button');
+                btn.className = 'prompt-btn' + (key === currentPrompt ? ' active' : '');
+                btn.textContent = key;
+                btn.onclick = () => selectPrompt(key);
+                btn.dataset.key = key;
+                nav.appendChild(btn);
+            });
+
+            // Add "All" button
+            const allBtn = document.createElement('button');
+            allBtn.className = 'prompt-btn';
+            allBtn.textContent = 'View All';
+            allBtn.onclick = showAll;
+            allBtn.id = 'all-btn';
+            nav.appendChild(allBtn);
+
+            // Build all view
+            buildAllView();
+        }
+
+        function selectPrompt(key) {
+            currentPrompt = key;
+            document.querySelectorAll('.prompt-btn').forEach(b => b.classList.remove('active'));
+            document.querySelector(`.prompt-btn[data-key="${key}"]`).classList.add('active');
+            document.getElementById('all-btn').classList.remove('active');
+
+            document.getElementById('single-view').style.display = 'block';
+            document.getElementById('all-view').classList.remove('active');
+
+            document.getElementById('current-title').textContent = prompts[key].title;
+            document.getElementById('prompt-code').textContent = prompts[key].content;
+        }
+
+        function showAll() {
+            document.querySelectorAll('.prompt-btn').forEach(b => b.classList.remove('active'));
+            document.getElementById('all-btn').classList.add('active');
+
+            document.getElementById('single-view').style.display = 'none';
+            document.getElementById('all-view').classList.add('active');
+        }
+
+        function buildAllView() {
+            const container = document.getElementById('all-view');
+            Object.keys(prompts).forEach(key => {
+                const card = document.createElement('div');
+                card.className = 'prompt-card';
+                card.dataset.key = key;
+                card.innerHTML = `
+                    <div class="prompt-card-header" onclick="toggleCard('${key}')">
+                        <span class="prompt-card-title">${prompts[key].title}</span>
+                        <span class="prompt-card-toggle">▼</span>
+                    </div>
+                    <div class="prompt-card-content">
+                        <div style="margin-bottom: 0.5rem;">
+                            <button class="action-btn" onclick="copySpecific('${key}')">Copy</button>
+                            <button class="action-btn" onclick="downloadSpecific('${key}')">Download</button>
+                        </div>
+                        <code class="prompt-code">${escapeHtml(prompts[key].content)}</code>
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        function toggleCard(key) {
+            const card = document.querySelector(`.prompt-card[data-key="${key}"]`);
+            card.classList.toggle('expanded');
+        }
+
+        function escapeHtml(text) {
+            return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+        }
+
+        function copyPrompt() {
+            navigator.clipboard.writeText(prompts[currentPrompt].content);
+            showToast('Copied to clipboard!');
+        }
+
+        function copyRaw() {
+            navigator.clipboard.writeText(prompts[currentPrompt].content);
+            showToast('Raw content copied!');
+        }
+
+        function copySpecific(key) {
+            navigator.clipboard.writeText(prompts[key].content);
+            showToast(`${key} copied!`);
+        }
+
+        function downloadPrompt() {
+            const blob = new Blob([prompts[currentPrompt].content], { type: 'text/markdown' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `${currentPrompt}.md`;
+            a.click();
+            URL.revokeObjectURL(url);
+            showToast('Downloaded!');
+        }
+
+        function downloadSpecific(key) {
+            const blob = new Blob([prompts[key].content], { type: 'text/markdown' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `${key}.md`;
+            a.click();
+            URL.revokeObjectURL(url);
+            showToast('Downloaded!');
+        }
+
+        function showToast(msg) {
+            const toast = document.getElementById('toast');
+            toast.textContent = msg;
+            toast.classList.add('show');
+            setTimeout(() => toast.classList.remove('show'), 2000);
+        }
+
+        function filterPrompts() {
+            const query = document.getElementById('search').value.toLowerCase();
+            document.querySelectorAll('.prompt-btn[data-key]').forEach(btn => {
+                const key = btn.dataset.key;
+                const content = prompts[key].content.toLowerCase();
+                const title = prompts[key].title.toLowerCase();
+                btn.style.display = (content.includes(query) || title.includes(query)) ? '' : 'none';
+            });
+            document.querySelectorAll('.prompt-card').forEach(card => {
+                const key = card.dataset.key;
+                const content = prompts[key].content.toLowerCase();
+                const title = prompts[key].title.toLowerCase();
+                card.style.display = (content.includes(query) || title.includes(query)) ? '' : 'none';
+            });
+        }
+
+        // --- THREE.JS BACKGROUND ---
+        let scene, camera, renderer, points;
+        const PARTICLE_COUNT = 1500;
+
+        function initThree() {
+            scene = new THREE.Scene();
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.z = 5;
+
+            renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            document.getElementById('canvas-container').appendChild(renderer.domElement);
+
+            const geometry = new THREE.BufferGeometry();
+            const positions = new Float32Array(PARTICLE_COUNT * 3);
+
+            for (let i = 0; i < PARTICLE_COUNT; i++) {
+                const i3 = i * 3;
+                const phi = Math.acos(-1 + (2 * i) / PARTICLE_COUNT);
+                const theta = Math.sqrt(PARTICLE_COUNT * Math.PI) * phi;
+                positions[i3] = 3 * Math.cos(theta) * Math.sin(phi);
+                positions[i3 + 1] = 3 * Math.sin(theta) * Math.sin(phi);
+                positions[i3 + 2] = 3 * Math.cos(phi);
+            }
+
+            geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+
+            const material = new THREE.PointsMaterial({
+                color: 0x333333,
+                size: 0.015,
+                transparent: true,
+                opacity: 0.4
+            });
+
+            points = new THREE.Points(geometry, material);
+            scene.add(points);
+
+            window.addEventListener('resize', onResize);
+            animate();
+        }
+
+        function onResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            points.rotation.y += 0.001;
+            points.rotation.x += 0.0005;
+            renderer.render(scene, camera);
+        }
+
+        window.onload = () => {
+            initNav();
+            selectPrompt('prompt-01');
+            initThree();
+        };
+    </script>
+</body>
+</html>

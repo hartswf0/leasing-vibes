@@ -1,0 +1,528 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>The Way of the Vibe Coder</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <style>
+        :root {
+            --bg-color: #F0EEE6;
+            --text-color: #333333;
+            --accent-color: #555555;
+            --font-mono: 'Courier New', Courier, monospace;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            font-family: var(--font-mono);
+            line-height: 1.6;
+            overflow-x: hidden;
+        }
+
+        #canvas-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100vh;
+            z-index: -1;
+            pointer-events: none;
+        }
+
+        .progress-bar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            height: 3px;
+            background: var(--text-color);
+            z-index: 100;
+            width: 0%;
+            transition: width 0.1s ease-out;
+        }
+
+        .scroll-container {
+            position: relative;
+            z-index: 1;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 0 20px;
+        }
+
+        header {
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            padding: 2rem;
+        }
+
+        .subtitle {
+            font-size: 0.85rem;
+            opacity: 0.6;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin-bottom: 1rem;
+        }
+
+        h1 {
+            font-size: 2.2rem;
+            font-weight: normal;
+            margin-bottom: 0.5rem;
+            letter-spacing: -1px;
+        }
+
+        .tagline {
+            font-size: 1.1rem;
+            opacity: 0.8;
+            margin: 1rem 0;
+            font-style: italic;
+        }
+
+        .date {
+            font-size: 0.8rem;
+            opacity: 0.5;
+            margin-top: 0.5rem;
+        }
+
+        .core-question {
+            background: rgba(240, 238, 230, 0.9);
+            border-left: 2px solid var(--text-color);
+            padding: 1.5rem;
+            margin: 2rem 0;
+            max-width: 500px;
+        }
+
+        .core-question strong {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            opacity: 0.6;
+        }
+
+        .scroll-hint {
+            margin-top: 3rem;
+            animation: bounce 2s infinite;
+            opacity: 0.5;
+        }
+
+        @keyframes bounce {
+            0%, 20%, 50%, 80%, 100% { transform: translateY(0); }
+            40% { transform: translateY(-10px); }
+            60% { transform: translateY(-5px); }
+        }
+
+        /* Main Content */
+        section {
+            padding: 8vh 0;
+        }
+
+        h2 {
+            font-size: 1.3rem;
+            font-weight: normal;
+            margin-bottom: 2rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 1px solid var(--accent-color);
+        }
+
+        .thesis {
+            background: rgba(240, 238, 230, 0.9);
+            padding: 2rem;
+            margin-bottom: 4rem;
+            border-left: 2px solid var(--text-color);
+        }
+
+        .thesis p {
+            margin-bottom: 1rem;
+        }
+
+        .thesis p:last-child {
+            margin-bottom: 0;
+        }
+
+        /* Navigation Grid */
+        .nav-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 3rem;
+        }
+
+        .nav-card {
+            background: rgba(240, 238, 230, 0.95);
+            border: 1px solid var(--accent-color);
+            padding: 1.5rem;
+            text-decoration: none;
+            color: var(--text-color);
+            transition: all 0.3s ease;
+            display: block;
+        }
+
+        .nav-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 8px 24px rgba(0,0,0,0.08);
+            border-color: var(--text-color);
+        }
+
+        .nav-card-category {
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            opacity: 0.5;
+            margin-bottom: 0.5rem;
+        }
+
+        .nav-card-title {
+            font-size: 1.1rem;
+            margin-bottom: 0.75rem;
+        }
+
+        .nav-card-desc {
+            font-size: 0.85rem;
+            opacity: 0.7;
+            line-height: 1.5;
+        }
+
+        .nav-card-arrow {
+            margin-top: 1rem;
+            opacity: 0.4;
+            transition: opacity 0.3s, transform 0.3s;
+        }
+
+        .nav-card:hover .nav-card-arrow {
+            opacity: 1;
+            transform: translateX(4px);
+        }
+
+        /* Prompt Section */
+        .prompt-box {
+            background: rgba(51, 51, 51, 0.05);
+            border: 1px dashed var(--accent-color);
+            padding: 1.5rem;
+            margin: 2rem 0;
+        }
+
+        .prompt-box-title {
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            opacity: 0.6;
+            margin-bottom: 1rem;
+        }
+
+        .prompt-box p {
+            font-size: 0.95rem;
+            font-style: italic;
+        }
+
+        /* Image Folders */
+        .folder-list {
+            list-style: none;
+            margin: 1rem 0;
+        }
+
+        .folder-list li {
+            padding: 0.75rem 0;
+            border-bottom: 1px solid rgba(0,0,0,0.1);
+            font-size: 0.9rem;
+        }
+
+        .folder-list li:last-child {
+            border-bottom: none;
+        }
+
+        footer {
+            padding: 6rem 0 4rem;
+            text-align: center;
+            opacity: 0.5;
+            font-size: 0.8rem;
+        }
+
+        footer a {
+            color: var(--text-color);
+        }
+
+        @media (max-width: 768px) {
+            .scroll-container {
+                padding: 0 15px;
+            }
+            h1 {
+                font-size: 1.6rem;
+            }
+            .nav-grid {
+                grid-template-columns: 1fr;
+            }
+            .core-question {
+                padding: 1rem;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="progress-bar" id="progress"></div>
+    <div id="canvas-container"></div>
+
+    <main class="scroll-container">
+        <header>
+            <span class="subtitle">LEASING VIBES</span>
+            <h1>The Way of the Vibe Coder</h1>
+            <p class="tagline">Culture, Media, and the Making of "Man"</p>
+            <p class="date">Thu 01/22</p>
+
+            <div class="core-question">
+                <strong>Core Question</strong>
+                "What is man?" becomes "Through what code/medium are we written?"
+            </div>
+
+            <div class="scroll-hint">↓</div>
+        </header>
+
+        <section>
+            <h2>The Thesis</h2>
+            <div class="thesis">
+                <p><strong>Culture is human software</strong>, continuously re-coded by new media. The "message" is not content—it is the architect of reality itself.</p>
+                <p>Through McLuhan and Geertz, we see how each medium reshapes what "man" can be. Rick Rubin's "Way of Code" illuminates this: the pattern was always there, waiting to be revealed.</p>
+            </div>
+
+            <div class="prompt-box">
+                <div class="prompt-box-title">Guiding Prompt</div>
+                <p>Using McLuhan/Geertz, discuss how a medium reshapes "man." How does Rick Rubin's "Way of Code" illuminate this process of cultural becoming?</p>
+            </div>
+        </section>
+
+        <section>
+            <h2>McLuhan: The Medium is the Message</h2>
+            <div class="nav-grid">
+                <a href="mclu.html" class="nav-card">
+                    <div class="nav-card-category">Scrollytelling</div>
+                    <div class="nav-card-title">Understanding Media</div>
+                    <div class="nav-card-desc">The Extensions of Man (1964). Chapter 1: The medium introduces a new scale, pace, or pattern into human affairs.</div>
+                    <div class="nav-card-arrow">→</div>
+                </a>
+                <a href="mclu-00.html" class="nav-card">
+                    <div class="nav-card-category">Scrollytelling</div>
+                    <div class="nav-card-title">McLuhan Variant 00</div>
+                    <div class="nav-card-desc">Alternative visualization of mechanical fragmentation dissolving into electric simultaneity.</div>
+                    <div class="nav-card-arrow">→</div>
+                </a>
+                <a href="mclu-01.html" class="nav-card">
+                    <div class="nav-card-category">Scrollytelling</div>
+                    <div class="nav-card-title">McLuhan Variant 01</div>
+                    <div class="nav-card-desc">Cubist rendering—showing all facets of a concept simultaneously.</div>
+                    <div class="nav-card-arrow">→</div>
+                </a>
+            </div>
+        </section>
+
+        <section>
+            <h2>Geertz: The Impact of Culture on Man</h2>
+            <div class="nav-grid">
+                <a href="geertz.html" class="nav-card">
+                    <div class="nav-card-category">Scrollytelling</div>
+                    <div class="nav-card-title">The Concept of Culture</div>
+                    <div class="nav-card-desc">The impact of the concept of culture on the concept of man. Culture as the human operating system.</div>
+                    <div class="nav-card-arrow">→</div>
+                </a>
+                <a href="watch-your-tone.html" class="nav-card">
+                    <div class="nav-card-category">Essay</div>
+                    <div class="nav-card-title">Watch Your Tone</div>
+                    <div class="nav-card-desc">An exploration of cultural modulation and the grammar of meaning.</div>
+                    <div class="nav-card-arrow">→</div>
+                </a>
+            </div>
+        </section>
+
+        <section>
+            <h2>Tools & Resources</h2>
+            <div class="nav-grid">
+                <a href="prompt-viewer.html" class="nav-card">
+                    <div class="nav-card-category">Tool</div>
+                    <div class="nav-card-title">Prompt Viewer</div>
+                    <div class="nav-card-desc">Browse, search, and copy all POML prompt templates. The Vibe Coder's toolkit.</div>
+                    <div class="nav-card-arrow">→</div>
+                </a>
+                <a href="image-viewer.html" class="nav-card">
+                    <div class="nav-card-category">Gallery</div>
+                    <div class="nav-card-title">Image Viewer</div>
+                    <div class="nav-card-desc">Visual archives from "The Impact of Culture on Man" and "Cultural OS: The Human Operating System."</div>
+                    <div class="nav-card-arrow">→</div>
+                </a>
+            </div>
+        </section>
+
+        <section>
+            <h2>Image Collections</h2>
+            <ul class="folder-list">
+                <li>📁 <strong>The Impact of the Concept of Culture on the Concept of Man</strong> — 8 images</li>
+                <li>📁 <strong>CULTURAL OS: The Human Operating System</strong> — 9 images</li>
+            </ul>
+        </section>
+
+        <section>
+            <h2>Prompt Templates</h2>
+            <ul class="folder-list">
+                <li>📄 <strong>prompt-01.md</strong> — Base Template (Scrollytelling)</li>
+                <li>📄 <strong>prompt-02.md</strong> — McLuhan Chapter 1</li>
+                <li>📄 <strong>prompt-03.md</strong> — McLuhan Thinking Machine</li>
+                <li>📄 <strong>prompt-04.md</strong> — Scrollytelling Poem Template</li>
+                <li>📄 <strong>prompt-05.md</strong> — Mobile-First Template</li>
+                <li>📄 <strong>prompt-06.md</strong> — React/Canvas Template</li>
+            </ul>
+            <p style="margin-top: 1rem; opacity: 0.6; font-size: 0.85rem;">Access all templates via the <a href="prompt-viewer.html">Prompt Viewer</a>.</p>
+        </section>
+
+        <footer>
+            <p>The Way of the Vibe Coder · LEASING VIBES</p>
+            <p style="margin-top: 0.5rem;">"The medium is the message."</p>
+        </footer>
+    </main>
+
+    <script>
+        // --- THREE.JS BACKGROUND ---
+        let scene, camera, renderer, points, lineSystem;
+        let scrollPercent = 0;
+        const PARTICLE_COUNT = 2500;
+        
+        const posCube = new Float32Array(PARTICLE_COUNT * 3);
+        const posSphere = new Float32Array(PARTICLE_COUNT * 3);
+        const posFlow = new Float32Array(PARTICLE_COUNT * 3);
+
+        function init() {
+            scene = new THREE.Scene();
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.z = 5;
+
+            renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            document.getElementById('canvas-container').appendChild(renderer.domElement);
+
+            for (let i = 0; i < PARTICLE_COUNT; i++) {
+                const i3 = i * 3;
+
+                // CUBE (Mechanical)
+                posCube[i3] = (Math.random() - 0.5) * 4;
+                posCube[i3 + 1] = (Math.random() - 0.5) * 4;
+                posCube[i3 + 2] = (Math.random() - 0.5) * 4;
+
+                // SPHERE (Integral)
+                const phi = Math.acos(-1 + (2 * i) / PARTICLE_COUNT);
+                const theta = Math.sqrt(PARTICLE_COUNT * Math.PI) * phi;
+                posSphere[i3] = 2.5 * Math.cos(theta) * Math.sin(phi);
+                posSphere[i3 + 1] = 2.5 * Math.sin(theta) * Math.sin(phi);
+                posSphere[i3 + 2] = 2.5 * Math.cos(phi);
+
+                // FLOW (Electric)
+                posFlow[i3] = (Math.random() - 0.5) * 8;
+                posFlow[i3 + 1] = Math.sin(posFlow[i3] * 0.5) * 2;
+                posFlow[i3 + 2] = (Math.random() - 0.5) * 2;
+            }
+
+            const geometry = new THREE.BufferGeometry();
+            geometry.setAttribute('position', new THREE.BufferAttribute(new Float32Array(posCube), 3));
+
+            const material = new THREE.PointsMaterial({
+                color: 0x333333,
+                size: 0.018,
+                transparent: true,
+                opacity: 0.5
+            });
+
+            points = new THREE.Points(geometry, material);
+            scene.add(points);
+
+            const lineMat = new THREE.LineBasicMaterial({ color: 0x333333, transparent: true, opacity: 0.08 });
+            const lineGeom = new THREE.BufferGeometry();
+            const linePositions = new Float32Array(600);
+            lineGeom.setAttribute('position', new THREE.BufferAttribute(linePositions, 3));
+            lineSystem = new THREE.LineSegments(lineGeom, lineMat);
+            scene.add(lineSystem);
+
+            window.addEventListener('resize', onWindowResize);
+            document.addEventListener('scroll', onScroll);
+            
+            animate();
+        }
+
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        function onScroll() {
+            const h = document.documentElement, 
+                  b = document.body,
+                  st = 'scrollTop',
+                  sh = 'scrollHeight';
+            scrollPercent = (h[st]||b[st]) / ((h[sh]||b[sh]) - h.clientHeight);
+            document.getElementById('progress').style.width = (scrollPercent * 100) + '%';
+        }
+
+        function lerp(a, b, t) {
+            return a + (b - a) * t;
+        }
+
+        function updateGeometry() {
+            const positions = points.geometry.attributes.position.array;
+            
+            for (let i = 0; i < PARTICLE_COUNT; i++) {
+                const i3 = i * 3;
+                let targetX, targetY, targetZ;
+
+                if (scrollPercent < 0.5) {
+                    const t = scrollPercent * 2;
+                    targetX = lerp(posCube[i3], posFlow[i3], t);
+                    targetY = lerp(posCube[i3 + 1], posFlow[i3 + 1], t);
+                    targetZ = lerp(posCube[i3 + 2], posFlow[i3 + 2], t);
+                } else {
+                    const t = (scrollPercent - 0.5) * 2;
+                    targetX = lerp(posFlow[i3], posSphere[i3], t);
+                    targetY = lerp(posFlow[i3 + 1], posSphere[i3 + 1], t);
+                    targetZ = lerp(posFlow[i3 + 2], posSphere[i3 + 2], t);
+                }
+
+                positions[i3] = lerp(positions[i3], targetX, 0.08);
+                positions[i3 + 1] = lerp(positions[i3 + 1], targetY, 0.08);
+                positions[i3 + 2] = lerp(positions[i3 + 2], targetZ, 0.08);
+            }
+            points.geometry.attributes.position.needsUpdate = true;
+
+            const linePos = lineSystem.geometry.attributes.position.array;
+            for(let i = 0; i < 100; i++) {
+                const pIdx = i * 15;
+                linePos[i*6] = positions[pIdx];
+                linePos[i*6+1] = positions[pIdx+1];
+                linePos[i*6+2] = positions[pIdx+2];
+                linePos[i*6+3] = positions[pIdx+3];
+                linePos[i*6+4] = positions[pIdx+4];
+                linePos[i*6+5] = positions[pIdx+5];
+            }
+            lineSystem.geometry.attributes.position.needsUpdate = true;
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            updateGeometry();
+            points.rotation.y += 0.001 + (scrollPercent * 0.005);
+            points.rotation.x = scrollPercent * 0.3;
+            lineSystem.rotation.y = points.rotation.y;
+            lineSystem.rotation.x = points.rotation.x;
+            renderer.render(scene, camera);
+        }
+
+        window.onload = init;
+    </script>
+</body>
+</html>

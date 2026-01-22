@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>McLuhan: The Medium is the Message</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <style>
+        :root {
+            --bg-color: #F0EEE6;
+            --text-color: #333333;
+            --accent-color: #555555;
+            --font-mono: 'Courier New', Courier, monospace;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            font-family: var(--font-mono);
+            line-height: 1.6;
+            overflow-x: hidden;
+        }
+
+        #canvas-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100vh;
+            z-index: -1;
+            pointer-events: none;
+        }
+
+        .scroll-container {
+            position: relative;
+            z-index: 1;
+            max-width: 650px;
+            margin: 0 auto;
+            padding: 0 20px;
+        }
+
+        header {
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+        }
+
+        h1 {
+            font-size: 2rem;
+            font-weight: normal;
+            margin-bottom: 1rem;
+            letter-spacing: -1px;
+        }
+
+        .subtitle {
+            font-size: 0.9rem;
+            opacity: 0.6;
+            text-transform: uppercase;
+        }
+
+        section {
+            padding: 15vh 0;
+            min-height: 60vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+
+        p {
+            margin-bottom: 2rem;
+            font-size: 1.1rem;
+            background: rgba(240, 238, 230, 0.85);
+            padding: 1rem;
+            border-left: 1px solid var(--accent-color);
+        }
+
+        blockquote {
+            font-style: italic;
+            margin: 2rem 0;
+            padding-left: 1.5rem;
+            border-left: 2px solid var(--text-color);
+            opacity: 0.8;
+        }
+
+        .progress-bar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            height: 3px;
+            background: var(--text-color);
+            z-index: 100;
+            width: 0%;
+            transition: width 0.1s ease-out;
+        }
+
+        footer {
+            height: 50vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            opacity: 0.5;
+            font-size: 0.8rem;
+        }
+
+        @media (max-width: 768px) {
+            .scroll-container {
+                padding: 0 15px;
+            }
+            p {
+                font-size: 1rem;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="progress-bar" id="progress"></div>
+
+    <div id="canvas-container"></div>
+
+    <main class="scroll-container">
+        <header>
+            <span class="subtitle">Marshall McLuhan</span>
+            <h1>UNDERSTANDING MEDIA</h1>
+            <p>The Extensions of Man (1964)</p>
+            <div style="margin-top: 2rem; animation: bounce 2s infinite;">↓</div>
+        </header>
+
+        <section id="chap1-start">
+            <p><strong>CHAPTER 1: The Medium is the Message</strong></p>
+            <p>In a culture like ours, long accustomed to splitting and dividing all things as a means of control, it is sometimes a bit of a shock to be reminded that, in operational and practical fact, the medium is the message.</p>
+            <p>This is merely to say that the personal and social consequences of any medium—that is, of any extension of ourselves—result from the new scale that is introduced into our affairs by each extension of ourselves, or by any new technology.</p>
+        </section>
+
+        <section>
+            <p>The instance of the electric light may prove illuminating in this connection. The electric light is pure information. It is a medium without a message, as it were, unless it is used to spell out some verbal ad or name.</p>
+            <p>The "message" of any medium or technology is the change of scale or pace or pattern that it introduces into human affairs.</p>
+        </section>
+
+        <section>
+            <p>The railway did not introduce movement or transportation or wheel or road into human society, but it accelerated and enlarged the scale of previous human functions, creating totally new kinds of cities and new kinds of work and leisure.</p>
+            <blockquote>"The medium is the message because it is the medium that shapes and controls the scale and form of human association and action."</blockquote>
+        </section>
+
+        <section>
+            <p>Cubism, by seizing on instant total awareness, suddenly announced that the medium is the message. Is it not evident that the moment that sequence yields to the simultaneous, one is in the world of the structure and of configuration?</p>
+            <p>Specialized segments of attention have shifted to total field, and we can now say, "The medium is the message" quite naturally.</p>
+        </section>
+
+        <section id="chap7">
+            <p><strong>CHAPTER 7: Challenge and Collapse</strong></p>
+            <p>The artist is the man in any field, scientific or humanistic, who grasps the implications of his actions and of new knowledge in his own time. He is the man of integral awareness.</p>
+            <p>The artist can correct the sense ratios before the blow of new technology has numbed conscious procedures.</p>
+        </section>
+
+        <section>
+            <p>Once we have surrendered our senses and nervous systems to the private manipulation of those who would try to benefit from taking a lease on our eyes and ears and nerves, we don’t really have any rights left.</p>
+            <blockquote>"I will stand on your eyes, your ears, your nerves, and your brain, and the world will move in any tempo or pattern I choose."</blockquote>
+        </section>
+
+        <footer>
+            <p>© 1964 Marshall McLuhan. Rendered in Kinetic Math.</p>
+        </footer>
+    </main>
+
+    <script>
+        // --- VIBE CODER: THREE.JS LOGIC ---
+        let scene, camera, renderer, points, lineSystem;
+        let scrollPercent = 0;
+        const PARTICLE_COUNT = 3000;
+        
+        // State Geometries (Vertices)
+        const posCube = new Float32Array(PARTICLE_COUNT * 3);
+        const posSphere = new Float32Array(PARTICLE_COUNT * 3);
+        const posFlow = new Float32Array(PARTICLE_COUNT * 3);
+
+        function init() {
+            scene = new THREE.Scene();
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.z = 5;
+
+            renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            document.getElementById('canvas-container').appendChild(renderer.domElement);
+
+            // Create Geometric Targets
+            for (let i = 0; i < PARTICLE_COUNT; i++) {
+                const i3 = i * 3;
+
+                // 1. CUBE (The Mechanical / Fragmented)
+                posCube[i3] = (Math.random() - 0.5) * 4;
+                posCube[i3 + 1] = (Math.random() - 0.5) * 4;
+                posCube[i3 + 2] = (Math.random() - 0.5) * 4;
+
+                // 2. SPHERE (The Integral / Global Village)
+                const phi = Math.acos(-1 + (2 * i) / PARTICLE_COUNT);
+                const theta = Math.sqrt(PARTICLE_COUNT * Math.PI) * phi;
+                posSphere[i3] = 2.5 * Math.cos(theta) * Math.sin(phi);
+                posSphere[i3 + 1] = 2.5 * Math.sin(theta) * Math.sin(phi);
+                posSphere[i3 + 2] = 2.5 * Math.cos(phi);
+
+                // 3. FLOW (The Information / Electric Light)
+                posFlow[i3] = (Math.random() - 0.5) * 10;
+                posFlow[i3 + 1] = Math.sin(posFlow[i3] * 0.5) * 2;
+                posFlow[i3 + 2] = (Math.random() - 0.5) * 2;
+            }
+
+            const geometry = new THREE.BufferGeometry();
+            geometry.setAttribute('position', new THREE.BufferAttribute(new Float32Array(posCube), 3));
+
+            const material = new THREE.PointsMaterial({
+                color: 0x333333,
+                size: 0.02,
+                transparent: true,
+                opacity: 0.6
+            });
+
+            points = new THREE.Points(geometry, material);
+            scene.add(points);
+
+            // Add subtle lines for structure
+            const lineMat = new THREE.LineBasicMaterial({ color: 0x333333, transparent: true, opacity: 0.1 });
+            const lineGeom = new THREE.BufferGeometry();
+            const linePositions = new Float32Array(600); // 200 lines
+            lineGeom.setAttribute('position', new THREE.BufferAttribute(linePositions, 3));
+            lineSystem = new THREE.LineSegments(lineGeom, lineMat);
+            scene.add(lineSystem);
+
+            window.addEventListener('resize', onWindowResize);
+            document.addEventListener('scroll', onScroll);
+            
+            animate();
+        }
+
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        function onScroll() {
+            const h = document.documentElement, 
+                  b = document.body,
+                  st = 'scrollTop',
+                  sh = 'scrollHeight';
+            scrollPercent = (h[st]||b[st]) / ((h[sh]||b[sh]) - h.clientHeight);
+            document.getElementById('progress').style.width = (scrollPercent * 100) + '%';
+        }
+
+        function lerp(a, b, t) {
+            return a + (b - a) * t;
+        }
+
+        function updateGeometry() {
+            const positions = points.geometry.attributes.position.array;
+            
+            for (let i = 0; i < PARTICLE_COUNT; i++) {
+                const i3 = i * 3;
+                let targetX, targetY, targetZ;
+
+                if (scrollPercent < 0.5) {
+                    // Transition Cube -> Flow
+                    const t = scrollPercent * 2;
+                    targetX = lerp(posCube[i3], posFlow[i3], t);
+                    targetY = lerp(posCube[i3 + 1], posFlow[i3 + 1], t);
+                    targetZ = lerp(posCube[i3 + 2], posFlow[i3 + 2], t);
+                } else {
+                    // Transition Flow -> Sphere
+                    const t = (scrollPercent - 0.5) * 2;
+                    targetX = lerp(posFlow[i3], posSphere[i3], t);
+                    targetY = lerp(posFlow[i3 + 1], posSphere[i3 + 1], t);
+                    targetZ = lerp(posFlow[i3 + 2], posSphere[i3 + 2], t);
+                }
+
+                // Smoothly lerp current position to target (Wu Wei principle)
+                positions[i3] = lerp(positions[i3], targetX, 0.1);
+                positions[i3 + 1] = lerp(positions[i3 + 1], targetY, 0.1);
+                positions[i3 + 2] = lerp(positions[i3 + 2], targetZ, 0.1);
+            }
+            points.geometry.attributes.position.needsUpdate = true;
+
+            // Update line connections sparsely
+            const linePos = lineSystem.geometry.attributes.position.array;
+            for(let i = 0; i < 200; i++) {
+                const pIdx = i * 10; // Random sampling of points
+                linePos[i*6] = positions[pIdx];
+                linePos[i*6+1] = positions[pIdx+1];
+                linePos[i*6+2] = positions[pIdx+2];
+                linePos[i*6+3] = positions[pIdx+3];
+                linePos[i*6+4] = positions[pIdx+4];
+                linePos[i*6+5] = positions[pIdx+5];
+            }
+            lineSystem.geometry.attributes.position.needsUpdate = true;
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            
+            updateGeometry();
+            
+            // Subtle constant rotation based on scroll
+            points.rotation.y += 0.002 + (scrollPercent * 0.01);
+            points.rotation.x = scrollPercent * 0.5;
+            lineSystem.rotation.y = points.rotation.y;
+            lineSystem.rotation.x = points.rotation.x;
+
+            renderer.render(scene, camera);
+        }
+
+        window.onload = init;
+    </script>
+</body>
+</html>

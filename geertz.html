@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>The Loom of Significance</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <style>
+        :root {
+            --bg-color: #F0EEE6;
+            --text-color: #333333;
+            --accent-color: #555555;
+            --font-mono: 'Courier New', Courier, monospace;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            font-family: var(--font-mono);
+            overflow-x: hidden;
+            line-height: 1.6;
+        }
+
+        #canvas-container {
+            position: fixed;
+            top: 0;
+            right: 0;
+            width: 60vw;
+            height: 100vh;
+            z-index: -1;
+            background: radial-gradient(circle at center, #F0EEE6 0%, #E5E2D9 100%);
+        }
+
+        #content {
+            width: 40vw;
+            padding: 5vh 5vw;
+            position: relative;
+            z-index: 1;
+        }
+
+        .section {
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            margin-bottom: 20vh;
+            opacity: 0.3;
+            transition: opacity 0.5s ease;
+        }
+
+        .section.active {
+            opacity: 1;
+        }
+
+        h1 {
+            font-size: 1.8rem;
+            margin-bottom: 2rem;
+            border-bottom: 1px solid var(--text-color);
+            padding-bottom: 1rem;
+            text-transform: uppercase;
+            letter-spacing: 0.2rem;
+        }
+
+        p {
+            font-size: 1rem;
+            margin-bottom: 1.5rem;
+            text-align: justify;
+        }
+
+        .quote {
+            font-style: italic;
+            border-left: 2px solid var(--text-color);
+            padding-left: 1.5rem;
+            margin: 2rem 0;
+        }
+
+        .scroll-indicator {
+            position: fixed;
+            bottom: 20px;
+            left: 20px;
+            font-size: 0.7rem;
+            letter-spacing: 0.1rem;
+            opacity: 0.5;
+        }
+
+        @media (max-width: 768px) {
+            #canvas-container { width: 100vw; height: 50vh; opacity: 0.4; pointer-events: none; }
+            #content { width: 100vw; padding: 60vh 10vw 10vh 10vw; }
+            .section { min-height: auto; margin-bottom: 40vh; }
+        }
+    </style>
+</head>
+<body>
+
+    <div id="canvas-container"></div>
+    <div class="scroll-indicator">P(SCROLL) // 0.000</div>
+
+    <main id="content">
+        <section class="section" id="intro">
+            <h1>The Pattern Latent</h1>
+            <p>Werner Heisenberg points out that technical change alters not only habits of life, but patterns of thought and valuation.</p>
+            <div class="quote">
+                "Whoever uses machines does all his work like a machine. He who does his work like a machine grows a heart like a machine..."
+            </div>
+            <p>We begin as uncarved geometry—a state of "Simplicity" before the lever, before the grid.</p>
+        </section>
+
+        <section class="section" id="mechanics">
+            <h1>The Machine Heart</h1>
+            <p>The "draw-well" is efficiency. A wooden lever, weighted at the back. It gushes water. But the gardener fears the machine-heart.</p>
+            <p>To lose simplicity is to become unsure in the strivings of the soul. Industrial logic is a rigid grid, a taxonomy of isolated causes and specific remedies.</p>
+            <div class="quote">
+                "Uncertainty in the strivings of the soul is something which does not agree with honest sense."
+            </div>
+        </section>
+
+        <section class="section" id="operating-system">
+            <h1>Cultural OS</h1>
+            <p>Geertz suggests we are incomplete or unfinished animals who finish ourselves through culture.</p>
+            <p>Culture is not merely output; it is the generative source code. Without these <Extragenetic_Programs>, man would be a chaos of pointless acts.</p>
+            <div class="quote">
+                "The Cultural OS doesn't just run programs - it creates the user."
+            </div>
+        </section>
+
+        <section class="section" id="the-web">
+            <h1>Webs of Significance</h1>
+            <p>Man is an animal suspended in webs of significance he himself has spun. To study humanity is to trace the pattern of those webs.</p>
+            <p>To be human is not just to breathe; it is to control one’s breathing. We begin with the equipment to live a thousand lives, but end having lived only one.</p>
+            <div class="quote">
+                "Culture is the loom on which humanity is woven."
+            </div>
+        </section>
+    </main>
+
+    <script>
+        // --- Initialization ---
+        const container = document.getElementById('canvas-container');
+        const scrollLabel = document.querySelector('.scroll-indicator');
+        const sections = document.querySelectorAll('.section');
+        
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(75, container.clientWidth / container.clientHeight, 0.1, 1000);
+        const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+        renderer.setSize(container.clientWidth, container.clientHeight);
+        renderer.setPixelRatio(window.devicePixelRatio);
+        container.appendChild(renderer.domElement);
+
+        camera.position.z = 5;
+
+        // --- Objects ---
+        
+        // 1. Simplicity: A cloud of points forming a soft sphere
+        const pointCount = 1500;
+        const positions = new Float32Array(pointCount * 3);
+        const sphereGeometry = new THREE.BufferGeometry();
+        
+        for (let i = 0; i < pointCount; i++) {
+            const u = Math.random();
+            const v = Math.random();
+            const theta = 2 * Math.PI * u;
+            const phi = Math.acos(2 * v - 1);
+            const r = 2;
+            positions[i * 3] = r * Math.sin(phi) * Math.cos(theta);
+            positions[i * 3 + 1] = r * Math.sin(phi) * Math.sin(theta);
+            positions[i * 3 + 2] = r * Math.cos(phi);
+        }
+        sphereGeometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+        const pointMaterial = new THREE.PointsMaterial({ color: 0x333333, size: 0.02 });
+        const points = new THREE.Points(sphereGeometry, pointMaterial);
+        scene.add(points);
+
+        // 2. The Machine: A wireframe cube/grid
+        const gridGeometry = new THREE.BoxGeometry(3, 3, 3, 10, 10, 10);
+        const gridMaterial = new THREE.MeshBasicMaterial({ 
+            color: 0x333333, 
+            wireframe: true, 
+            transparent: true, 
+            opacity: 0 
+        });
+        const grid = new THREE.Mesh(gridGeometry, gridMaterial);
+        scene.add(grid);
+
+        // 3. The Web: Line segments connecting random points
+        const webLineCount = 300;
+        const webGeometry = new THREE.BufferGeometry();
+        const webPositions = new Float32Array(webLineCount * 6); // 2 points per line
+        for(let i = 0; i < webLineCount * 6; i++) {
+            webPositions[i] = (Math.random() - 0.5) * 6;
+        }
+        webGeometry.setAttribute('position', new THREE.BufferAttribute(webPositions, 3));
+        const webMaterial = new THREE.LineBasicMaterial({ color: 0x333333, transparent: true, opacity: 0 });
+        const webLines = new THREE.LineSegments(webGeometry, webMaterial);
+        scene.add(webLines);
+
+        // --- Interaction Logic ---
+        let scrollProgress = 0;
+        let targetScroll = 0;
+
+        window.addEventListener('scroll', () => {
+            const h = document.documentElement, 
+                  b = document.body,
+                  st = 'scrollTop',
+                  sh = 'scrollHeight';
+            targetScroll = (h[st] || b[st]) / ((h[sh] || b[sh]) - h.clientHeight);
+            
+            // Highlight active text section
+            sections.forEach((sec, idx) => {
+                const rect = sec.getBoundingClientRect();
+                if (rect.top < window.innerHeight * 0.5 && rect.bottom > window.innerHeight * 0.5) {
+                    sec.classList.add('active');
+                } else {
+                    sec.classList.remove('active');
+                }
+            });
+        });
+
+        const lerp = (start, end, amt) => (1 - amt) * start + amt * end;
+
+        function animate() {
+            requestAnimationFrame(animate);
+            
+            // Smooth lerp for scroll progress
+            scrollProgress = lerp(scrollProgress, targetScroll, 0.1);
+            scrollLabel.innerText = `P(SCROLL) // ${scrollProgress.toFixed(3)}`;
+
+            // Rotation for all elements
+            points.rotation.y += 0.002;
+            points.rotation.x += 0.001;
+            grid.rotation.y -= 0.001;
+            webLines.rotation.z += 0.001;
+
+            // MAPPING PROGRESS (0 to 1)
+            
+            // Phase 1: 0.0 to 0.33 (Sphere -> Grid)
+            if (scrollProgress < 0.33) {
+                const p = scrollProgress / 0.33;
+                points.material.opacity = 1;
+                grid.material.opacity = p;
+                points.scale.set(1 + p, 1 + p, 1 + p);
+                webLines.material.opacity = 0;
+            } 
+            // Phase 2: 0.33 to 0.66 (Grid dominance)
+            else if (scrollProgress < 0.66) {
+                const p = (scrollProgress - 0.33) / 0.33;
+                points.material.opacity = 1 - p;
+                grid.material.opacity = 1;
+                grid.scale.set(1 - p * 0.2, 1 - p * 0.2, 1 - p * 0.2);
+                webLines.material.opacity = p;
+            } 
+            // Phase 3: 0.66 to 1.0 (The Web)
+            else {
+                const p = (scrollProgress - 0.66) / 0.34;
+                grid.material.opacity = 1 - p;
+                webLines.material.opacity = 1;
+                webLines.scale.set(1 + p * 0.5, 1 + p * 0.5, 1 + p * 0.5);
+                points.material.opacity = 0;
+            }
+
+            // Camera movement based on scroll
+            camera.position.x = Math.sin(scrollProgress * Math.PI) * 0.5;
+            camera.lookAt(0,0,0);
+
+            renderer.render(scene, camera);
+        }
+
+        window.addEventListener('resize', () => {
+            camera.aspect = container.clientWidth / container.clientHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(container.clientWidth, container.clientHeight);
+        });
+
+        // Trigger first highlight
+        sections[0].classList.add('active');
+        animate();
+    </script>
+</body>
+</html>
